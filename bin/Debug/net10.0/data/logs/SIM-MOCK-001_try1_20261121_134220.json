@@ -1,0 +1,28 @@
+﻿{
+  "time": "2026-11-21T13:42:20.6229709+07:00",
+  "tid": "SIM-MOCK-001",
+  "attempt": 1,
+  "request": {
+    "data": [
+      {
+        "tid": "SIM-MOCK-001",
+        "shopcode": "E0001",
+        "orgCode": "sopi",
+        "type": "Online Payment",
+        "payment": 53000,
+        "receiver_name": "Tes Satu"
+      }
+    ]
+  },
+  "http": 200,
+  "noResponse": false,
+  "notSent": false,
+  "error": "",
+  "response": {
+    "code": "200",
+    "message": "导入原单成功 导入失败0单",
+    "data": {
+      "2671008836982120981": "SIM-MOCK-001"
+    }
+  }
+}

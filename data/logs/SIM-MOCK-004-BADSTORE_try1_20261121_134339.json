@@ -1,0 +1,26 @@
+﻿{
+  "time": "2026-11-21T13:43:39.8954329+07:00",
+  "tid": "SIM-MOCK-004-BADSTORE",
+  "attempt": 1,
+  "request": {
+    "data": [
+      {
+        "tid": "SIM-MOCK-004-BADSTORE",
+        "shopcode": "E0002",
+        "orgCode": "sopi",
+        "type": "Online Payment",
+        "payment": 21000,
+        "receiver_name": "Tes Empat"
+      }
+    ]
+  },
+  "http": 200,
+  "noResponse": false,
+  "notSent": false,
+  "error": "",
+  "response": {
+    "code": "200",
+    "message": "导入原单成功0单 导入失败1单: SIM-MOCK-004-BADSTORE: 店铺编码不存在或没有做门店对照",
+    "data": {}
+  }
+}
