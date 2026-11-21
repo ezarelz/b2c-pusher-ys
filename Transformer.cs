@@ -198,9 +198,8 @@ public sealed class Transformer
         var sumAmount = lineData.Sum(l => l.Amount);
         var diff = sumAmount - target;
 
-        var expected = sumAmount - Dec(raw, "add_disc") + postFee + Dec(raw, "insurance_cost") + Dec(raw, "add_fee");
-        if (Math.Abs(expected - grand) > 1)
-            warnings.Add($"grand_total {Fmt(grand)} tidak sama dengan komponen ({Fmt(expected)}); selisih {Fmt(grand - expected)} dibagi ke diskon baris");
+        // Keputusan 21 Nov: payment = grand_total untuk semua channel, termasuk Shopee
+        // (grand_total Shopee sudah dipotong biaya layanan). Selisihnya masuk ke diskon baris tanpa peringatan.
 
         var payments = new decimal[lineData.Count];
         decimal allocated = 0;
@@ -307,8 +306,8 @@ public sealed class Transformer
             ["tradeVouchCustomCharacter"] = new JsonObject()
         };
 
+        // HP tersamar -> placeholder adalah perilaku normal (aturan mapping), jadi tidak diberi peringatan.
         if (city == "") warnings.Add("shipping_city kosong, wilayah dikirim kosong");
-        if (mobile == _cfg.PhonePlaceholder) warnings.Add("HP tersamar/pendek, dipakai placeholder");
         return (order, warnings);
     }
 
