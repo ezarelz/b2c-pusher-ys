@@ -13,7 +13,7 @@ public sealed class AppConfig
     public string ImportPath { get; set; } = "/yonbip/sd/dst/tradevouch/import";
     public string QueryPath { get; set; } = "/yonbip/sd/dst/tradevouch/query";
     public string QueryBodyTemplate { get; set; } =
-        "{\"pageIndex\":1,\"pageSize\":10,\"partParam\":{\"shopcode\":\"{shopcode}\",\"tid\":\"{tid}\"}}";
+        "{\"partParam\":{\"pageIndex\":1,\"pageSize\":10,\"shopcode\":\"{shopcode}\",\"tid\":\"{tid}\"}}";
 
     public string OrdersArrayProperty { get; set; } = "data";
     public string TidField { get; set; } = "tid";
