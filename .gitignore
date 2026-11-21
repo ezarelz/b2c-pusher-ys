@@ -15,9 +15,13 @@ appsettings.Local.json
 *.env
 .env
 
-# Raw order asli dari Ecolink (berisi data pembeli): jangan di-commit
+# Raw order asli dari Ecolink (berisi data pembeli): jangan di-commit,
+# di folder mana pun di bawah samples/
 samples/raw/*
 !samples/raw/.gitkeep
+samples/**/salesorder-*.json
+samples/temporary-out/
+samples/raw_*/
 
 # Editor
 .vs/
