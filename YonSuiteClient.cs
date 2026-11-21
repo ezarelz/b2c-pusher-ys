@@ -31,6 +31,11 @@ public sealed class YonSuiteClient
     private readonly HttpClient _http;
     private string? _token;
     private DateTimeOffset _tokenExpiry;
+    private int _fetchCount;
+    private bool _staticLogged;
+
+    private static string Mask(string token) =>
+        token.Length <= 8 ? "****" : token[..4] + "..." + token[^4..];
 
     public YonSuiteClient(AppConfig cfg)
     {
@@ -40,7 +45,15 @@ public sealed class YonSuiteClient
 
     public async Task<string> GetTokenAsync()
     {
-        if (!string.IsNullOrWhiteSpace(_cfg.StaticAccessToken)) return _cfg.StaticAccessToken;
+        if (!string.IsNullOrWhiteSpace(_cfg.StaticAccessToken))
+        {
+            if (!_staticLogged)
+            {
+                Console.WriteLine($"[token] memakai YS_TOKEN statis {Mask(_cfg.StaticAccessToken)} (tidak diperbarui otomatis)");
+                _staticLogged = true;
+            }
+            return _cfg.StaticAccessToken;
+        }
         if (_token != null && DateTimeOffset.Now < _tokenExpiry) return _token;
 
         // Self-app auth YonBIP: signature = Base64(HmacSHA256("appKey{key}timestamp{ts}", secret))
@@ -62,13 +75,22 @@ public sealed class YonSuiteClient
             throw new InvalidOperationException("Gagal ambil token: " + JsonHelpers.Truncate(text, 300));
 
         var expireSec = int.TryParse(JsonHelpers.AsText(data?["expire"]), out var e) ? e : 3600;
+        var renewing = _token != null || _fetchCount > 0;
         _token = token;
+        _fetchCount++;
         // Minta token baru 5 menit sebelum kedaluwarsa.
         _tokenExpiry = DateTimeOffset.Now.AddSeconds(Math.Max(60, expireSec - 300));
+        Console.WriteLine($"[token] {(renewing ? "token DIPERBARUI" : "token baru diambil")} {Mask(token)} " +
+                          $"pukul {DateTimeOffset.Now:HH:mm:ss}, berlaku {expireSec} detik, " +
+                          $"diperbarui otomatis sekitar {_tokenExpiry:HH:mm}");
         return token;
     }
 
-    public void InvalidateToken() => _token = null;
+    public void InvalidateToken()
+    {
+        if (_token != null) Console.WriteLine("[token] token ditolak server (401), meminta token baru");
+        _token = null;
+    }
 
     /// <summary>Waktu token diminta ulang (5 menit sebelum kedaluwarsa). Null kalau memakai token statis.</summary>
     public DateTimeOffset? TokenRefreshAt => _token == null ? null : _tokenExpiry;
