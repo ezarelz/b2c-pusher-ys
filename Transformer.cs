@@ -219,8 +219,7 @@ public sealed class Transformer
         if (country == "") country = "Indonesia";
         var phoneRaw = F(raw, "shipping_phone");
         if (phoneRaw == "") phoneRaw = F(raw, "customer_phone");
-        var phoneDigits = new string(phoneRaw.Where(char.IsDigit).ToArray());
-        var mobile = phoneDigits.Length >= 8 ? phoneDigits : _cfg.PhonePlaceholder;
+        var mobile = BuildMobile(phoneRaw, _cfg.PhonePlaceholder);
 
         var isCod = F(raw, "is_cod") == "true";
         var memo = $"COMPLETED di Jubelio {completed ?? "-"} WIB|Jubelio {F(raw, "salesorder_id")}|store_id {storeIdText}|{F(raw, "payment_method")}";
@@ -312,6 +311,24 @@ public sealed class Transformer
     }
 
     // ---------------------------------------------------------------- helpers
+
+    /// <summary>
+    /// Nomor HP penerima (keputusan 21 Nov, opsi C):
+    /// - nomor utuh (tanpa '*', minimal 8 digit) dipakai apa adanya (angka saja);
+    /// - nomor tersamar marketplace, mis. "(+62)857******15": placeholder yang ujungnya
+    ///   diganti digit terakhir yang terlihat (maksimal 4) -> "081234567815";
+    /// - tidak ada digit di ujung: placeholder utuh.
+    /// </summary>
+    public static string BuildMobile(string raw, string placeholder)
+    {
+        var digits = new string(raw.Where(char.IsDigit).ToArray());
+        if (!raw.Contains('*') && digits.Length >= 8) return digits;
+
+        var tail = new string(raw.Reverse().TakeWhile(char.IsDigit).Reverse().ToArray());
+        if (tail.Length > 4) tail = tail[^4..];
+        if (tail.Length == 0 || tail.Length >= placeholder.Length) return placeholder;
+        return placeholder[..^tail.Length] + tail;
+    }
 
     private static string F(JsonObject obj, string field) => JsonHelpers.Field(obj, field);
 
