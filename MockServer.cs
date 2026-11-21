@@ -48,7 +48,10 @@ public static class MockServer
             if (req.Query["access_token"] != Token) return Unauthorized();
 
             var body = await ReadJson(req);
-            var orders = body as JsonArray ?? (body as JsonObject)?["data"] as JsonArray ?? new JsonArray();
+            var orders = body as JsonArray
+                         ?? (body as JsonObject)?["externalData"] as JsonArray
+                         ?? (body as JsonObject)?["data"] as JsonArray
+                         ?? new JsonArray();
 
             var data = new JsonObject();
             int ok = 0, failed = 0;
