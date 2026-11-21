@@ -30,7 +30,66 @@ switch (command)
             Console.WriteLine("Pakai: dotnet run -- push --file <path.json> [--dry-run]");
             return 1;
         }
-        return await new Pusher(cfg).PushFileAsync(file, args.Contains("--dry-run"));
+        var onlyArg = Arg("--only");
+        var only = onlyArg is null
+            ? null
+            : new HashSet<string>(onlyArg.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        var force = args.Contains("--force");
+        if (force && only is null)
+        {
+            Console.WriteLine("--force hanya boleh dipakai bersama --only <tid1,tid2>, supaya tidak mengirim ulang semua order.");
+            return 1;
+        }
+        return await new Pusher(cfg).PushFileAsync(file, args.Contains("--dry-run"), only, force);
+    }
+    case "token":
+    {
+        // Tes koneksi: sama dengan request token di Postman. Token tidak ditampilkan utuh.
+        Console.WriteLine($"Token URL: {cfg.TokenUrl}");
+        Console.WriteLine($"Sumber   : {(string.IsNullOrWhiteSpace(cfg.StaticAccessToken) ? "appKey/appSecret (diminta otomatis)" : "YS_TOKEN (token statis dari Postman)")}");
+        try
+        {
+            var client = new YonSuiteClient(cfg);
+            var token = await client.GetTokenAsync();
+            var masked = token.Length <= 8 ? "****" : token[..4] + "..." + token[^4..];
+            Console.WriteLine($"Token OK : {masked} ({token.Length} karakter)");
+            if (client.TokenRefreshAt is { } t)
+                Console.WriteLine($"Diminta ulang otomatis sekitar {t:yyyy-MM-dd HH:mm}");
+            return 0;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
+        {
+            Console.WriteLine("Gagal ambil token: " + ex.Message);
+            return 2;
+        }
+    }
+    case "query":
+    {
+        // Cek satu order di YonSuite dan tampilkan respons mentah (untuk mencocokkan QueryBodyTemplate).
+        var shop = Arg("--shop");
+        var tid = Arg("--tid");
+        if (shop is null || tid is null)
+        {
+            Console.WriteLine("Pakai: dotnet run -- query --shop E0001 --tid <tid>");
+            return 1;
+        }
+        var client = new YonSuiteClient(cfg);
+        Console.WriteLine("Body    : " + client.BuildQueryBody(shop, tid));
+        var raw = await client.QueryRawAsync(shop, tid);
+        if (raw.NoResponse || raw.NotSent)
+        {
+            Console.WriteLine("Gagal   : " + raw.Error);
+            return 2;
+        }
+        Console.WriteLine($"HTTP    : {raw.Http}");
+        var pretty = JsonHelpers.TryParse(raw.Text)?.ToJsonString(JsonHelpers.Pretty) ?? raw.Text;
+        Console.WriteLine("Respons :");
+        Console.WriteLine(JsonHelpers.Truncate(pretty, 4000));
+        var q = await client.QueryAsync(shop, tid);
+        Console.WriteLine(q.Error != null
+            ? "Hasil   : query gagal - " + q.Error
+            : q.Found ? $"Hasil   : DITEMUKAN, ID {q.Id}" : "Hasil   : TIDAK ditemukan");
+        return 0;
     }
     case "transform":
     {
@@ -67,10 +126,14 @@ static void PrintHelp()
         B2cPusher - push order ke YonSuite tradevouch/import dengan ledger idempotensi
 
           dotnet run -- mock                              jalankan YonSuite palsu di localhost:5055
+          dotnet run -- token                             tes ambil token YonSuite (seperti step 1 Postman)
+          dotnet run -- query --shop E0001 --tid <tid>    cek satu order di YonSuite, tampilkan respons mentah
           dotnet run -- transform --in <folder/file>      raw JSON Ecolink -> payload YonSuite
                 [--out file.json] [--tid-prefix TEST-]
           dotnet run -- push --file <file.json>           push semua order di file
           dotnet run -- push --file <file.json> --dry-run validasi + tulis payload, tanpa kirim
+          dotnet run -- push --file <file.json> --only <tid1,tid2> [--force]
+                hanya order terpilih; --force = kirim ulang walaupun ledger SUCCESS
           dotnet run -- verify [--sample 5]               cek SENT_UNCONFIRMED (+ sampel SUCCESS) lewat query
           dotnet run -- report                            ringkasan ledger + ekspor CSV
         """);

@@ -13,7 +13,7 @@ public sealed class AppConfig
     public string ImportPath { get; set; } = "/yonbip/sd/dst/tradevouch/import";
     public string QueryPath { get; set; } = "/yonbip/sd/dst/tradevouch/query";
     public string QueryBodyTemplate { get; set; } =
-        "{\"pageIndex\":1,\"pageSize\":10,\"partParam\":{\"shopcode\":\"{shopcode}\",\"tid\":\"{tid}\"}}";
+        "{\"partParam\":{\"pageIndex\":1,\"pageSize\":10,\"shopcode\":\"{shopcode}\",\"tid\":\"{tid}\"}}";
 
     public string OrdersArrayProperty { get; set; } = "data";
     public string TidField { get; set; } = "tid";
@@ -59,6 +59,14 @@ public sealed class AppConfig
         cfg.AppSecret = Env("YS_APPSECRET") ?? cfg.AppSecret;
         cfg.StaticAccessToken = Env("YS_TOKEN") ?? cfg.StaticAccessToken;
         cfg.GatewayUrl = Env("YS_GATEWAY") ?? cfg.GatewayUrl;
+        // Untuk mencoba format body query tanpa mengedit appsettings.json.
+        cfg.QueryBodyTemplate = Env("YS_QUERY_BODY") ?? cfg.QueryBodyTemplate;
+
+        // YS_TOKEN_URL = nilai {{tokenUrl}} di environment Postman (tanpa path).
+        var tokenBase = Env("YS_TOKEN_URL");
+        if (tokenBase != null) cfg.TokenUrl = tokenBase;
+        if (!cfg.TokenUrl.Contains("/open-auth/", StringComparison.OrdinalIgnoreCase))
+            cfg.TokenUrl = cfg.TokenUrl.TrimEnd('/') + "/open-auth/selfAppAuth/getAccessToken";
         return cfg;
     }
 

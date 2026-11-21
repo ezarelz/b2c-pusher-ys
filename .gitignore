@@ -10,12 +10,18 @@ corrections.csv
 
 # Secret / konfigurasi lokal
 appsettings.Local.json
+*.local.ps1
+*.local.sh
 *.env
 .env
 
-# Raw order asli dari Ecolink (berisi data pembeli): jangan di-commit
+# Raw order asli dari Ecolink (berisi data pembeli): jangan di-commit,
+# di folder mana pun di bawah samples/
 samples/raw/*
 !samples/raw/.gitkeep
+samples/**/salesorder-*.json
+samples/temporary-out/
+samples/raw_*/
 
 # Editor
 .vs/

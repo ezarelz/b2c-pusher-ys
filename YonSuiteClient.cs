@@ -70,6 +70,9 @@ public sealed class YonSuiteClient
 
     public void InvalidateToken() => _token = null;
 
+    /// <summary>Waktu token diminta ulang (5 menit sebelum kedaluwarsa). Null kalau memakai token statis.</summary>
+    public DateTimeOffset? TokenRefreshAt => _token == null ? null : _tokenExpiry;
+
     public async Task<ImportResult> ImportAsync(string body)
     {
         var result = await PostAsync(_cfg.ImportPath, body);
@@ -82,18 +85,31 @@ public sealed class YonSuiteClient
         return result;
     }
 
+    public string BuildQueryBody(string shopcode, string tid) => _cfg.QueryBodyTemplate
+        .Replace("{shopcode}", JsonEncodedText.Encode(shopcode).ToString())
+        .Replace("{tid}", JsonEncodedText.Encode(tid).ToString());
+
+    /// <summary>Query mentah, untuk mencocokkan format body dan respons dengan tenant.</summary>
+    public Task<ImportResult> QueryRawAsync(string shopcode, string tid) =>
+        PostAsync(_cfg.QueryPath, BuildQueryBody(shopcode, tid));
+
     public async Task<QueryResult> QueryAsync(string shopcode, string tid)
     {
-        var body = _cfg.QueryBodyTemplate
-            .Replace("{shopcode}", JsonEncodedText.Encode(shopcode).ToString())
-            .Replace("{tid}", JsonEncodedText.Encode(tid).ToString());
-
-        var r = await PostAsync(_cfg.QueryPath, body);
+        var r = await PostAsync(_cfg.QueryPath, BuildQueryBody(shopcode, tid));
         if (r.NoResponse || r.NotSent) return new QueryResult { Error = "query gagal: " + r.Error };
         if (r.Http >= 400) return new QueryResult { Error = $"query HTTP {r.Http}: {JsonHelpers.Truncate(r.Text, 200)}" };
 
         var json = JsonHelpers.TryParse(r.Text) as JsonObject;
         if (json is null) return new QueryResult { Error = "respons query bukan JSON" };
+
+        // Respons error dari YonSuite (mis. code 999) = query GAGAL, bukan "tidak ditemukan".
+        // Kalau dianggap tidak ditemukan, order yang sebenarnya sudah masuk bisa terkirim ulang (dobel).
+        var code = JsonHelpers.AsText(json["code"]);
+        if (code != "" && code != "200" && code != "0")
+        {
+            var msg = JsonHelpers.AsText(json["message"]);
+            return new QueryResult { Error = $"YonSuite code {code}: {MessageText.ToIndonesian(msg)}" };
+        }
 
         // Cari tid hanya di bagian "data", supaya parameter yang mungkin dipantulkan balik
         // (partParam) tidak terbaca sebagai "ditemukan".

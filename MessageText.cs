@@ -20,6 +20,7 @@ public static class MessageText
         (new Regex(@"线上交易状态不在店铺档案设置.?原单转单线上交易状态范围.?"),
             "status transaksi di luar rentang 'Original order to online order' di setting toko"),
         (new Regex(@"订单不符合免审策略\s*Auto Approval\s*的免审时间"), "tidak memenuhi syarat waktu Auto Approval"),
+        (new Regex(@"查询订单失败\s*未传入页码[!！]?"), "query order gagal: nomor halaman tidak dikirim"),
         (new Regex(@"操作成功"), "operasi berhasil"),
         (new Regex(@"成功[！!]?"), "berhasil"),
     };

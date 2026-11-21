@@ -198,9 +198,8 @@ public sealed class Transformer
         var sumAmount = lineData.Sum(l => l.Amount);
         var diff = sumAmount - target;
 
-        var expected = sumAmount - Dec(raw, "add_disc") + postFee + Dec(raw, "insurance_cost") + Dec(raw, "add_fee");
-        if (Math.Abs(expected - grand) > 1)
-            warnings.Add($"grand_total {Fmt(grand)} tidak sama dengan komponen ({Fmt(expected)}); selisih {Fmt(grand - expected)} dibagi ke diskon baris");
+        // Keputusan 21 Nov: payment = grand_total untuk semua channel, termasuk Shopee
+        // (grand_total Shopee sudah dipotong biaya layanan). Selisihnya masuk ke diskon baris tanpa peringatan.
 
         var payments = new decimal[lineData.Count];
         decimal allocated = 0;
@@ -220,8 +219,7 @@ public sealed class Transformer
         if (country == "") country = "Indonesia";
         var phoneRaw = F(raw, "shipping_phone");
         if (phoneRaw == "") phoneRaw = F(raw, "customer_phone");
-        var phoneDigits = new string(phoneRaw.Where(char.IsDigit).ToArray());
-        var mobile = phoneDigits.Length >= 8 ? phoneDigits : _cfg.PhonePlaceholder;
+        var mobile = BuildMobile(phoneRaw, _cfg.PhonePlaceholder);
 
         var isCod = F(raw, "is_cod") == "true";
         var memo = $"COMPLETED di Jubelio {completed ?? "-"} WIB|Jubelio {F(raw, "salesorder_id")}|store_id {storeIdText}|{F(raw, "payment_method")}";
@@ -307,12 +305,30 @@ public sealed class Transformer
             ["tradeVouchCustomCharacter"] = new JsonObject()
         };
 
+        // HP tersamar -> placeholder adalah perilaku normal (aturan mapping), jadi tidak diberi peringatan.
         if (city == "") warnings.Add("shipping_city kosong, wilayah dikirim kosong");
-        if (mobile == _cfg.PhonePlaceholder) warnings.Add("HP tersamar/pendek, dipakai placeholder");
         return (order, warnings);
     }
 
     // ---------------------------------------------------------------- helpers
+
+    /// <summary>
+    /// Nomor HP penerima (keputusan 21 Nov, opsi C):
+    /// - nomor utuh (tanpa '*', minimal 8 digit) dipakai apa adanya (angka saja);
+    /// - nomor tersamar marketplace, mis. "(+62)857******15": placeholder yang ujungnya
+    ///   diganti digit terakhir yang terlihat (maksimal 4) -> "081234567815";
+    /// - tidak ada digit di ujung: placeholder utuh.
+    /// </summary>
+    public static string BuildMobile(string raw, string placeholder)
+    {
+        var digits = new string(raw.Where(char.IsDigit).ToArray());
+        if (!raw.Contains('*') && digits.Length >= 8) return digits;
+
+        var tail = new string(raw.Reverse().TakeWhile(char.IsDigit).Reverse().ToArray());
+        if (tail.Length > 4) tail = tail[^4..];
+        if (tail.Length == 0 || tail.Length >= placeholder.Length) return placeholder;
+        return placeholder[..^tail.Length] + tail;
+    }
 
     private static string F(JsonObject obj, string field) => JsonHelpers.Field(obj, field);
 
