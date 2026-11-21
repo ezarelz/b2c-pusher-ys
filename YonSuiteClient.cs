@@ -102,6 +102,15 @@ public sealed class YonSuiteClient
         var json = JsonHelpers.TryParse(r.Text) as JsonObject;
         if (json is null) return new QueryResult { Error = "respons query bukan JSON" };
 
+        // Respons error dari YonSuite (mis. code 999) = query GAGAL, bukan "tidak ditemukan".
+        // Kalau dianggap tidak ditemukan, order yang sebenarnya sudah masuk bisa terkirim ulang (dobel).
+        var code = JsonHelpers.AsText(json["code"]);
+        if (code != "" && code != "200" && code != "0")
+        {
+            var msg = JsonHelpers.AsText(json["message"]);
+            return new QueryResult { Error = $"YonSuite code {code}: {MessageText.ToIndonesian(msg)}" };
+        }
+
         // Cari tid hanya di bagian "data", supaya parameter yang mungkin dipantulkan balik
         // (partParam) tidak terbaca sebagai "ditemukan".
         var match = JsonHelpers.FindObjectWith(json["data"], _cfg.TidField, tid);

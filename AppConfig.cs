@@ -59,6 +59,8 @@ public sealed class AppConfig
         cfg.AppSecret = Env("YS_APPSECRET") ?? cfg.AppSecret;
         cfg.StaticAccessToken = Env("YS_TOKEN") ?? cfg.StaticAccessToken;
         cfg.GatewayUrl = Env("YS_GATEWAY") ?? cfg.GatewayUrl;
+        // Untuk mencoba format body query tanpa mengedit appsettings.json.
+        cfg.QueryBodyTemplate = Env("YS_QUERY_BODY") ?? cfg.QueryBodyTemplate;
 
         // YS_TOKEN_URL = nilai {{tokenUrl}} di environment Postman (tanpa path).
         var tokenBase = Env("YS_TOKEN_URL");
