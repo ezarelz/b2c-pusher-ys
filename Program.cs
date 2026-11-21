@@ -32,6 +32,27 @@ switch (command)
         }
         return await new Pusher(cfg).PushFileAsync(file, args.Contains("--dry-run"));
     }
+    case "token":
+    {
+        // Tes koneksi: sama dengan request token di Postman. Token tidak ditampilkan utuh.
+        Console.WriteLine($"Token URL: {cfg.TokenUrl}");
+        Console.WriteLine($"Sumber   : {(string.IsNullOrWhiteSpace(cfg.StaticAccessToken) ? "appKey/appSecret (diminta otomatis)" : "YS_TOKEN (token statis dari Postman)")}");
+        try
+        {
+            var client = new YonSuiteClient(cfg);
+            var token = await client.GetTokenAsync();
+            var masked = token.Length <= 8 ? "****" : token[..4] + "..." + token[^4..];
+            Console.WriteLine($"Token OK : {masked} ({token.Length} karakter)");
+            if (client.TokenRefreshAt is { } t)
+                Console.WriteLine($"Diminta ulang otomatis sekitar {t:yyyy-MM-dd HH:mm}");
+            return 0;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
+        {
+            Console.WriteLine("Gagal ambil token: " + ex.Message);
+            return 2;
+        }
+    }
     case "transform":
     {
         var input = Arg("--in");
@@ -67,6 +88,7 @@ static void PrintHelp()
         B2cPusher - push order ke YonSuite tradevouch/import dengan ledger idempotensi
 
           dotnet run -- mock                              jalankan YonSuite palsu di localhost:5055
+          dotnet run -- token                             tes ambil token YonSuite (seperti step 1 Postman)
           dotnet run -- transform --in <folder/file>      raw JSON Ecolink -> payload YonSuite
                 [--out file.json] [--tid-prefix TEST-]
           dotnet run -- push --file <file.json>           push semua order di file

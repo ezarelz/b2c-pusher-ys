@@ -70,6 +70,9 @@ public sealed class YonSuiteClient
 
     public void InvalidateToken() => _token = null;
 
+    /// <summary>Waktu token diminta ulang (5 menit sebelum kedaluwarsa). Null kalau memakai token statis.</summary>
+    public DateTimeOffset? TokenRefreshAt => _token == null ? null : _tokenExpiry;
+
     public async Task<ImportResult> ImportAsync(string body)
     {
         var result = await PostAsync(_cfg.ImportPath, body);

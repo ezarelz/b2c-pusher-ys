@@ -59,6 +59,12 @@ public sealed class AppConfig
         cfg.AppSecret = Env("YS_APPSECRET") ?? cfg.AppSecret;
         cfg.StaticAccessToken = Env("YS_TOKEN") ?? cfg.StaticAccessToken;
         cfg.GatewayUrl = Env("YS_GATEWAY") ?? cfg.GatewayUrl;
+
+        // YS_TOKEN_URL = nilai {{tokenUrl}} di environment Postman (tanpa path).
+        var tokenBase = Env("YS_TOKEN_URL");
+        if (tokenBase != null) cfg.TokenUrl = tokenBase;
+        if (!cfg.TokenUrl.Contains("/open-auth/", StringComparison.OrdinalIgnoreCase))
+            cfg.TokenUrl = cfg.TokenUrl.TrimEnd('/') + "/open-auth/selfAppAuth/getAccessToken";
         return cfg;
     }
 

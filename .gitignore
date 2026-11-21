@@ -10,6 +10,8 @@ corrections.csv
 
 # Secret / konfigurasi lokal
 appsettings.Local.json
+*.local.ps1
+*.local.sh
 *.env
 .env
 
