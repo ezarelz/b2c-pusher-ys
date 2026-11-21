@@ -30,7 +30,17 @@ switch (command)
             Console.WriteLine("Pakai: dotnet run -- push --file <path.json> [--dry-run]");
             return 1;
         }
-        return await new Pusher(cfg).PushFileAsync(file, args.Contains("--dry-run"));
+        var onlyArg = Arg("--only");
+        var only = onlyArg is null
+            ? null
+            : new HashSet<string>(onlyArg.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        var force = args.Contains("--force");
+        if (force && only is null)
+        {
+            Console.WriteLine("--force hanya boleh dipakai bersama --only <tid1,tid2>, supaya tidak mengirim ulang semua order.");
+            return 1;
+        }
+        return await new Pusher(cfg).PushFileAsync(file, args.Contains("--dry-run"), only, force);
     }
     case "token":
     {
@@ -122,6 +132,8 @@ static void PrintHelp()
                 [--out file.json] [--tid-prefix TEST-]
           dotnet run -- push --file <file.json>           push semua order di file
           dotnet run -- push --file <file.json> --dry-run validasi + tulis payload, tanpa kirim
+          dotnet run -- push --file <file.json> --only <tid1,tid2> [--force]
+                hanya order terpilih; --force = kirim ulang walaupun ledger SUCCESS
           dotnet run -- verify [--sample 5]               cek SENT_UNCONFIRMED (+ sampel SUCCESS) lewat query
           dotnet run -- report                            ringkasan ledger + ekspor CSV
         """);

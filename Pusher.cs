@@ -18,7 +18,7 @@ public sealed class Pusher
 
     // ------------------------------------------------------------------ push
 
-    public async Task<int> PushFileAsync(string file, bool dryRun)
+    public async Task<int> PushFileAsync(string file, bool dryRun, HashSet<string>? only = null, bool force = false)
     {
         var root = JsonNode.Parse(File.ReadAllText(file))
                    ?? throw new InvalidOperationException("File kosong: " + file);
@@ -30,6 +30,8 @@ public sealed class Pusher
         void Count(string k) => counts[k] = counts.GetValueOrDefault(k) + 1;
 
         Console.WriteLine($"File: {file} ({orders.Count} order){(dryRun ? "  [DRY-RUN: tidak ada yang dikirim]" : "")}");
+        if (only != null) Console.WriteLine($"Hanya order: {string.Join(", ", only)}");
+        if (force) Console.WriteLine("FORCE: cek ledger dilewati, order terpilih dikirim ulang walaupun sudah SUCCESS");
         Console.WriteLine(new string('-', 78));
 
         for (var i = 0; i < orders.Count; i++)
@@ -47,6 +49,12 @@ public sealed class Pusher
             var origShop = JsonHelpers.Field(original, _cfg.ShopcodeField);
             var key = Ledger.MakeKey(origShop, string.IsNullOrEmpty(tid) ? $"(tid kosong #{i + 1})" : tid);
 
+            if (only != null && !only.Contains(tid))
+            {
+                Count("TIDAK DIPILIH (--only)");
+                continue;
+            }
+
             var order = original.DeepClone().AsObject();
             var applied = corrections.Apply(tid, order);
             var shop = JsonHelpers.Field(order, _cfg.ShopcodeField);
@@ -55,6 +63,14 @@ public sealed class Pusher
 
             Console.Write($"[{i + 1}/{orders.Count}] {shop,-7} {tid,-28} ");
             foreach (var a in applied) Console.Write($"\n      koreksi {a}\n      ");
+
+            // --force: kirim ulang dengan sengaja (mis. order gagal transfer di YonSuite
+            // setelah setting toko diperbaiki). Ledger tetap dicatat.
+            if (force)
+            {
+                if (entry != null) Console.Write($"(force, status sebelumnya {entry.Status}) ");
+                entry = null;
+            }
 
             // 1. Sudah SUCCESS: lewati, atau tandai kalau datanya berubah.
             if (entry?.Status == Status.Success)
