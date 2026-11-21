@@ -53,6 +53,34 @@ switch (command)
             return 2;
         }
     }
+    case "query":
+    {
+        // Cek satu order di YonSuite dan tampilkan respons mentah (untuk mencocokkan QueryBodyTemplate).
+        var shop = Arg("--shop");
+        var tid = Arg("--tid");
+        if (shop is null || tid is null)
+        {
+            Console.WriteLine("Pakai: dotnet run -- query --shop E0001 --tid <tid>");
+            return 1;
+        }
+        var client = new YonSuiteClient(cfg);
+        Console.WriteLine("Body    : " + client.BuildQueryBody(shop, tid));
+        var raw = await client.QueryRawAsync(shop, tid);
+        if (raw.NoResponse || raw.NotSent)
+        {
+            Console.WriteLine("Gagal   : " + raw.Error);
+            return 2;
+        }
+        Console.WriteLine($"HTTP    : {raw.Http}");
+        var pretty = JsonHelpers.TryParse(raw.Text)?.ToJsonString(JsonHelpers.Pretty) ?? raw.Text;
+        Console.WriteLine("Respons :");
+        Console.WriteLine(JsonHelpers.Truncate(pretty, 4000));
+        var q = await client.QueryAsync(shop, tid);
+        Console.WriteLine(q.Error != null
+            ? "Hasil   : query gagal - " + q.Error
+            : q.Found ? $"Hasil   : DITEMUKAN, ID {q.Id}" : "Hasil   : TIDAK ditemukan");
+        return 0;
+    }
     case "transform":
     {
         var input = Arg("--in");
@@ -89,6 +117,7 @@ static void PrintHelp()
 
           dotnet run -- mock                              jalankan YonSuite palsu di localhost:5055
           dotnet run -- token                             tes ambil token YonSuite (seperti step 1 Postman)
+          dotnet run -- query --shop E0001 --tid <tid>    cek satu order di YonSuite, tampilkan respons mentah
           dotnet run -- transform --in <folder/file>      raw JSON Ecolink -> payload YonSuite
                 [--out file.json] [--tid-prefix TEST-]
           dotnet run -- push --file <file.json>           push semua order di file
