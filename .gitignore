@@ -1,0 +1,23 @@
+# Build output
+bin/
+obj/
+
+# Data hasil tes lokal (ledger, log request/respons, payload)
+data/
+
+# Koreksi lokal
+corrections.csv
+
+# Secret / konfigurasi lokal
+appsettings.Local.json
+*.env
+.env
+
+# Raw order asli dari Ecolink (berisi data pembeli): jangan di-commit
+samples/raw/*
+!samples/raw/.gitkeep
+
+# Editor
+.vs/
+.vscode/
+*.user

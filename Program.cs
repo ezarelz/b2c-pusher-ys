@@ -32,6 +32,17 @@ switch (command)
         }
         return await new Pusher(cfg).PushFileAsync(file, args.Contains("--dry-run"));
     }
+    case "transform":
+    {
+        var input = Arg("--in");
+        if (input is null || (!File.Exists(input) && !Directory.Exists(input)))
+        {
+            Console.WriteLine("Pakai: dotnet run -- transform --in <folder atau file raw JSON> [--out payload.json] [--tid-prefix TEST-]");
+            return 1;
+        }
+        var output = Arg("--out") ?? Path.Combine("data", "payload", $"payload_{DateTime.Now:yyyyMMdd_HHmmss}.json");
+        return new Transformer(cfg).Run(input, output, Arg("--tid-prefix") ?? "");
+    }
     case "verify":
     {
         var sample = int.TryParse(Arg("--sample"), out var s) ? s : 0;
@@ -56,6 +67,8 @@ static void PrintHelp()
         B2cPusher - push order ke YonSuite tradevouch/import dengan ledger idempotensi
 
           dotnet run -- mock                              jalankan YonSuite palsu di localhost:5055
+          dotnet run -- transform --in <folder/file>      raw JSON Ecolink -> payload YonSuite
+                [--out file.json] [--tid-prefix TEST-]
           dotnet run -- push --file <file.json>           push semua order di file
           dotnet run -- push --file <file.json> --dry-run validasi + tulis payload, tanpa kirim
           dotnet run -- verify [--sample 5]               cek SENT_UNCONFIRMED (+ sampel SUCCESS) lewat query

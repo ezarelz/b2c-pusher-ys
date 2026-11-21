@@ -24,6 +24,17 @@ public static class JsonHelpers
 
     public static string Field(JsonObject obj, string field) => AsText(obj[field]);
 
+    /// <summary>Ambil node lewat path bertitik, misalnya "partParam.orgCode".</summary>
+    public static JsonNode? GetPath(JsonNode? node, string path)
+    {
+        foreach (var part in path.Split('.', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (node is not JsonObject obj) return null;
+            node = obj[part];
+        }
+        return node;
+    }
+
     public static string Sha256(string text) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
 

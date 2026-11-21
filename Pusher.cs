@@ -289,16 +289,21 @@ public sealed class Pusher
 
         if (root is JsonObject obj)
         {
-            if (obj[prop] is JsonArray inner)
+            // Pakai properti dari config (externalData); format lama "data" tetap didukung.
+            var found = obj[prop] is JsonArray ? prop : obj["data"] is JsonArray ? "data" : null;
+            if (found != null)
             {
+                var inner = (JsonArray)obj[found]!;
                 var template = obj.DeepClone().AsObject();
-                template.Remove(prop);
+                template.Remove(found);
+                var rootOrg = JsonHelpers.AsText(JsonHelpers.GetPath(obj, _cfg.RootOrgCodePath));
+                if (rootOrg == "") rootOrg = JsonHelpers.Field(obj, _cfg.OrgCodeField);
                 return (inner, o =>
                 {
                     var b = template.DeepClone().AsObject();
-                    b[prop] = new JsonArray(o);
+                    b[found] = new JsonArray(o);
                     return b;
-                }, JsonHelpers.Field(obj, _cfg.OrgCodeField));
+                }, rootOrg);
             }
 
             // Satu order saja di root.

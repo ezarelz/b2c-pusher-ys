@@ -23,6 +23,16 @@ public sealed class AppConfig
 
     public List<string> AllowedShopcodes { get; set; } = new();
 
+    // --- Transformer (raw Jubelio -> payload YonSuite)
+    public string RootOrgCodePath { get; set; } = "partParam.orgCode";
+    public string OrgCode { get; set; } = "ecolink";
+    /// <summary>"zero" = sub_order_tax_fee 0 (seperti payload batch B/C yang sukses); "inclusive11" = payment x 11/111.</summary>
+    public string TaxMode { get; set; } = "zero";
+    public string PhonePlaceholder { get; set; } = "081234567890";
+    public string NermanKeyword { get; set; } = "NERMAN";
+    public List<StoreMapEntry> StoreMap { get; set; } = new();
+    public Dictionary<string, string> WarehouseMap { get; set; } = new();
+
     public int TimeoutSeconds { get; set; } = 15;
     public int DelayMsBetweenCalls { get; set; } = 300;
 

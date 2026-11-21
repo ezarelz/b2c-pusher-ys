@@ -101,6 +101,44 @@ dotnet run -- report
 Hasilnya ringkasan per status dan per toko, serta `data/ledger_export.csv`.
 Request dan respons tiap pengiriman ada di `data/logs/`.
 
+## Transform: raw JSON Ecolink -> payload YonSuite
+
+Ini contoh acuan untuk fitur F3 di Ecolink. Unduh raw JSON order dari Ecolink (tombol **Unduh JSON**),
+simpan ke satu folder, lalu:
+
+```
+dotnet run -- transform --in samples/raw --out data/payload/tes.json --tid-prefix TEST-
+```
+
+- Hanya order `status` COMPLETED yang diubah. Status lain dilewati.
+- Hasilnya `tes.json` (format `externalData` + `partParam.orgCode`) dan `tes.report.csv` (hasil per order).
+- `--tid-prefix TEST-` menambah awalan pada `tid` supaya tidak bentrok dengan order production. Untuk production, prefix dikosongkan.
+- File payload bisa langsung di-push: `dotnet run -- push --file data/payload/tes.json`.
+
+Aturan mapping (keputusan 21 Nov 2026):
+
+| Field YonSuite | Sumber |
+| --- | --- |
+| `tid`, `storeorder_id` | prefix + `salesorder_no` |
+| `shopcode`, `store_id` | `store_id` Jubelio lewat `StoreMap`, dicek silang dengan `source` (channel) dan kata "Nerman" di nama toko (brand) |
+| `created`, `consign_time` | `transaction_date` dalam WIB |
+| `pay_time` | `payment_date` dalam WIB (kosong: pakai `transaction_date`) |
+| `seller_memo` | tanggal COMPLETED + ID Jubelio + store_id + metode bayar |
+| `type` | `is_cod` -> COD / Online Payment |
+| `buyer_nick` / `receiver_name` | `customer_name` / `shipping_full_name` |
+| `receiver_state/city/district` | semuanya `shipping_city` |
+| `receiver_mobile` | angka dari `shipping_phone`; kurang dari 8 digit -> placeholder |
+| `post_fee` | `shipping_cost` |
+| Per baris: `itemcode`, `num`, `price` | `item_code`, `qty`, `price` |
+| Per baris: `payment` | `amount` item; selisih dengan `grand_total` (diskon level order) dibagi proporsional, sehingga total payment + `post_fee` = `grand_total` |
+| Per baris: `discount_fee` | `price` x `num` - `payment` |
+| Per baris: `sub_order_tax_fee` | 0 (`TaxMode` "zero"), seperti payload batch B/C |
+| Per baris: `warehouseCode` | `loc_name` lewat `WarehouseMap` |
+| Per baris: `logistics_company`, `invoice_no` | `courier`, `tracking_no` |
+
+Order yang gagal (toko belum dipetakan, channel/brand tidak cocok, lokasi belum dipetakan,
+data wajib kosong) tidak masuk payload dan alasannya tercatat di report.
+
 ## Ke tenant test YonSuite
 
 1. Ubah `GatewayUrl` dan `TokenUrl` di `appsettings.json` sesuai environment Postman.
