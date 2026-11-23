@@ -97,7 +97,7 @@ Jangan tulis appKey/appSecret di `appsettings.json`; file itu ikut ter-commit.
 | `status` | selalu "Shipped" (API tetap membuat To Ship; YonSuite melanjutkan otomatis) |
 | `created`, `consign_time` | `transaction_date` dalam WIB (mirroring Jubelio) |
 | `pay_time` | `payment_date` dalam WIB, atau `transaction_date` kalau kosong |
-| `seller_memo` | `Last updated <tanggal COMPLETED> WIB|Jubelio <ID>|store_id <id>|<metode bayar>` |
+| `seller_memo` | `Last updated <tanggal COMPLETED> WIB` + ID Jubelio + store_id + metode bayar, dipisah tanda pipa |
 | `type` | `is_cod` → COD / Online Payment |
 | `buyer_nick` / `receiver_name` | `customer_name` / `shipping_full_name` |
 | `receiver_state/city/district` | ketiganya `shipping_city` |
