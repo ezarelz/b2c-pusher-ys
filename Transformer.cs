@@ -222,7 +222,7 @@ public sealed class Transformer
         var mobile = BuildMobile(phoneRaw, _cfg.PhonePlaceholder);
 
         var isCod = F(raw, "is_cod") == "true";
-        var memo = $"COMPLETED di Jubelio {completed ?? "-"} WIB|Jubelio {F(raw, "salesorder_id")}|store_id {storeIdText}|{F(raw, "payment_method")}";
+        var memo = $"Last updated {completed ?? "-"} WIB|Jubelio {F(raw, "salesorder_id")}|store_id {storeIdText}|{F(raw, "payment_method")}";
 
         var shop = map!.Shopcode;
         var courier = F(raw, "courier");
