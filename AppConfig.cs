@@ -30,6 +30,8 @@ public sealed class AppConfig
     public string TaxMode { get; set; } = "zero";
     /// <summary>Dasar nilai A/R (payment): "grand_total" = perilaku lama (Shopee sudah net biaya admin); "amount" = sub_total - total_disc (harga jual setelah diskon seller, sebelum biaya platform).</summary>
     public string ArBasis { get; set; } = "grand_total";
+    /// <summary>Hanya untuk ArBasis "amount", order dengan voucher seller: "reject" (default, tolak), "add" (tambahkan voucher ke sub_total - total_disc), "included" (sub_total - total_disc sudah termasuk voucher).</summary>
+    public string VoucherMode { get; set; } = "reject";
     public string PhonePlaceholder { get; set; } = "081234567890";
     public string NermanKeyword { get; set; } = "NERMAN";
     public List<StoreMapEntry> StoreMap { get; set; } = new();
