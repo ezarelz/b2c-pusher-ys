@@ -194,38 +194,30 @@ public sealed class Transformer
 
         // Jumlah payment semua baris + ongkir harus sama dengan grand_total.
         // Selisih (mis. diskon level order / add_disc) dibagi proporsional ke baris.
-        // Dasar A/R dipilih lewat ArBasis: "amount" = sub_total - total_disc (harga jual setelah diskon seller,
-        // sebelum biaya platform), "grand_total" = perilaku lama.
+        // Dasar A/R dipilih lewat ArBasis: "amount" = penjualan kotor setelah diskon seller, sebelum biaya platform
+        // (Shopee: dari escrow_list; channel lain: sub_total - total_disc), "grand_total" = perilaku lama.
         decimal target;
         if (_cfg.ArBasis == "amount")
         {
             if (Dec(raw, "add_disc") != 0 || Dec(raw, "add_fee") != 0)
                 throw new TransformException("add_disc/add_fee <> 0: pengaruhnya ke dasar A/R belum diverifikasi");
-            target = Dec(raw, "sub_total") - Dec(raw, "total_disc");
 
-            // A/R Shopee = Grand Total laporan escrow + Voucher From Seller (Mapping Akun NAC, 25 Nov).
-            // Voucher hanya ada di escrow_list. Cara Jubelio memuatnya di sub_total/total_disc belum diverifikasi,
-            // jadi order bervoucher ditolak kecuali VoucherMode diset "add" atau "included".
-            var esc = raw["escrow_list"] as JsonObject;
-            if (esc is null)
+            if (string.Equals(F(raw, "source"), "SHOPEE", StringComparison.OrdinalIgnoreCase))
             {
-                warnings.Add("escrow_list kosong: voucher seller tidak bisa dicek");
+                // Shopee: A/R = harga asli - diskon seller (escrow_list) = Grand Total laporan escrow + voucher seller
+                // (Mapping Akun NAC, 25 Nov). Diskon yang ditanggung Shopee tidak mengurangi A/R, tetapi Jubelio memasukkannya
+                // ke diskon baris, sehingga sub_total - total_disc bisa lebih kecil dari A/R (contoh SP-2611014SUH045Q: 33.100 vs 38.300).
+                var esc = raw["escrow_list"] as JsonObject;
+                if (esc is null || F(raw, "is_escrow_updated") != "true")
+                    throw new TransformException("escrow belum tersedia (escrow_list kosong atau is_escrow_updated bukan true): order ditahan");
+                if (Dec(esc, "seller_return_refund") != 0)
+                    throw new TransformException("seller_return_refund <> 0: retur belum ditangani");
+                target = Dec(esc, "order_original_price") - Dec(esc, "order_seller_discount");
+                if (target <= 0) throw new TransformException("A/R dari escrow_list <= 0");
             }
             else
             {
-                if (F(raw, "is_escrow_updated") != "true")
-                    warnings.Add("escrow belum diperbarui: voucher seller bisa belum terlihat");
-                var voucher = Math.Abs(Dec(esc, "voucher_from_seller")) + Math.Abs(Dec(esc, "seller_coin_cash_back"));
-                if (voucher != 0)
-                {
-                    switch (_cfg.VoucherMode)
-                    {
-                        case "add": target += voucher; break;   // sub_total - total_disc sudah net voucher
-                        case "included": break;                  // sub_total - total_disc sudah gross voucher
-                        default:
-                            throw new TransformException($"voucher seller {Fmt(voucher)}: VoucherMode 'reject' (belum diverifikasi terhadap data Jubelio)");
-                    }
-                }
+                target = Dec(raw, "sub_total") - Dec(raw, "total_disc");
             }
         }
         else target = grand - postFee;

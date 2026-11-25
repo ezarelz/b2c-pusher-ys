@@ -29,18 +29,18 @@ crash, dan koreksi sudah lolos di mock.
 | `ArBasis` | Nilai A/R (total `payment`) | Catatan |
 | --- | --- | --- |
 | `grand_total` | `grand_total` − `shipping_cost` | Perilaku 21 Nov. Shopee sudah net biaya admin, dan biaya itu tercampur di `discount_fee`. |
-| `amount` | `sub_total` − `total_disc` (+ voucher seller, lihat `VoucherMode`) | Keputusan 25 Nov, Mapping Akun NAC: penjualan kotor setelah diskon seller. Biaya admin, AMS, voucher seller dan PPh 22 menjadi baris statement. |
+| `amount` | Shopee: `escrow_list.order_original_price` − `order_seller_discount`. Channel lain: `sub_total` − `total_disc` | Keputusan 25 Nov, Mapping Akun NAC: penjualan kotor setelah diskon seller. Biaya admin, voucher seller, AMS dan PPh 22 menjadi baris statement (di luar repo ini). |
 
-Aturan A/R Shopee menurut mapping NAC: Grand Total laporan escrow + Voucher From Seller − Seller Return Refund.
-Aturan ini sudah diuji pada laporan escrow Shopee 1 Nov 2026 (5.583 order, cocok dengan kolom penjualan mapping).
-Yang belum terbukti adalah cara Jubelio memuat voucher di `sub_total`/`total_disc`, sehingga:
+Aturan A/R Shopee menurut mapping NAC: Grand Total laporan escrow + Voucher From Seller − Seller Return Refund. Itu sama dengan
+harga asli − diskon seller. Aturan ini diuji pada laporan escrow Shopee 1 Nov 2026 (5.583 order, cocok dengan kolom penjualan mapping).
 
-- `VoucherMode = reject` (default): order dengan `escrow_list.voucher_from_seller` atau `seller_coin_cash_back` bukan 0 ditolak.
-- `add`: voucher ditambahkan ke `sub_total` − `total_disc` (dipakai jika Jubelio sudah net voucher).
-- `included`: `sub_total` − `total_disc` sudah gross voucher, tidak ditambah.
+Mengapa tidak memakai `sub_total` − `total_disc` untuk Shopee: Jubelio memasukkan diskon yang ditanggung Shopee ke diskon baris,
+padahal Shopee yang membayarnya sehingga tidak mengurangi A/R (SP-2611014SUH045Q: baris Jubelio 33.100, A/R 38.300 = 60.000 − 21.700).
 
-Order dengan `add_disc` atau `add_fee` bukan 0 juga ditolak pada `ArBasis = amount`. Jika `escrow_list` kosong atau
-`is_escrow_updated` bukan `true`, muncul peringatan karena voucher belum bisa dipastikan.
+Pada `ArBasis = amount` order Shopee ditolak (ditahan) jika:
+- `escrow_list` kosong atau `is_escrow_updated` bukan `true` (escrow belum cair),
+- `seller_return_refund` bukan 0 (retur belum ditangani),
+- `add_disc` atau `add_fee` bukan 0 (pengaruhnya belum diverifikasi).
 
 ## Isi repo
 
