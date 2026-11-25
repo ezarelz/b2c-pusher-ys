@@ -28,6 +28,8 @@ public sealed class AppConfig
     public string OrgCode { get; set; } = "ecolink";
     /// <summary>"zero" = sub_order_tax_fee 0 (seperti payload batch B/C yang sukses); "inclusive11" = payment x 11/111.</summary>
     public string TaxMode { get; set; } = "zero";
+    /// <summary>Dasar nilai A/R (payment): "grand_total" = perilaku lama (Shopee sudah net biaya admin); "amount" = sub_total - total_disc (harga jual setelah diskon seller, sebelum biaya platform).</summary>
+    public string ArBasis { get; set; } = "grand_total";
     public string PhonePlaceholder { get; set; } = "081234567890";
     public string NermanKeyword { get; set; } = "NERMAN";
     public List<StoreMapEntry> StoreMap { get; set; } = new();

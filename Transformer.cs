@@ -162,7 +162,7 @@ public sealed class Transformer
         var payTime = ToWib(F(raw, "payment_date")) ?? created;
         var completed = ToWib(F(raw, "completed_date")) ?? ToWib(F(raw, "last_modified"));
 
-        // --- Nilai: payment = grand_total (keputusan 21 Nov).
+        // --- Nilai: dasar A/R sesuai ArBasis (lihat di bawah).
         var grand = Dec(raw, "grand_total");
         var postFee = Dec(raw, "shipping_cost");
 
@@ -194,12 +194,22 @@ public sealed class Transformer
 
         // Jumlah payment semua baris + ongkir harus sama dengan grand_total.
         // Selisih (mis. diskon level order / add_disc) dibagi proporsional ke baris.
-        var target = grand - postFee;
+        // Dasar A/R dipilih lewat ArBasis: "amount" = sub_total - total_disc (harga jual setelah diskon seller,
+        // sebelum biaya platform), "grand_total" = perilaku lama.
+        decimal target;
+        if (_cfg.ArBasis == "amount")
+        {
+            if (Dec(raw, "add_disc") != 0 || Dec(raw, "add_fee") != 0)
+                throw new TransformException("add_disc/add_fee <> 0: pengaruhnya ke dasar A/R belum diverifikasi");
+            target = Dec(raw, "sub_total") - Dec(raw, "total_disc");
+        }
+        else target = grand - postFee;
         var sumAmount = lineData.Sum(l => l.Amount);
         var diff = sumAmount - target;
 
-        // Keputusan 21 Nov: payment = grand_total untuk semua channel, termasuk Shopee
+        // Keputusan 21 Nov (ArBasis = "grand_total"): payment = grand_total untuk semua channel, termasuk Shopee
         // (grand_total Shopee sudah dipotong biaya layanan). Selisihnya masuk ke diskon baris tanpa peringatan.
+        // Keputusan 25 Nov (ArBasis = "amount"): payment = sub_total - total_disc; diff = 0 dan discount_fee hanya diskon seller.
 
         var payments = new decimal[lineData.Count];
         decimal allocated = 0;
