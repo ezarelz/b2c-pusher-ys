@@ -99,8 +99,9 @@ switch (command)
             Console.WriteLine("Pakai: dotnet run -- transform --in <folder atau file raw JSON> [--out payload.json] [--tid-prefix TEST-]");
             return 1;
         }
-        var output = Arg("--out") ?? Path.Combine("data", "payload", $"payload_{DateTime.Now:yyyyMMdd_HHmmss}.json");
-        return new Transformer(cfg).Run(input, output, Arg("--tid-prefix") ?? "");
+        var tidPrefix = Arg("--tid-prefix") ?? "";
+        var output = Arg("--out") ?? DefaultPayloadPath(input, tidPrefix);
+        return new Transformer(cfg).Run(input, output, tidPrefix);
     }
     case "verify":
     {
@@ -112,6 +113,22 @@ switch (command)
     default:
         PrintHelp();
         return 1;
+}
+
+// Nama payload default mengikuti input, supaya mudah dicari:
+//   samples/raw/salesorder-11ez.json + --tid-prefix TESTCOLL6-  ->  data/payload/TESTCOLL6-salesorder-11ez.json
+//   samples/raw (folder)                                         ->  data/payload/raw.json
+// Kalau nama itu sudah ada, ditambah cap waktu agar payload lama tidak tertimpa.
+static string DefaultPayloadPath(string input, string tidPrefix)
+{
+    var baseName = File.Exists(input)
+        ? Path.GetFileNameWithoutExtension(input)
+        : new DirectoryInfo(Path.GetFullPath(input)).Name;
+    var name = tidPrefix + baseName;
+    var path = Path.Combine("data", "payload", name + ".json");
+    return File.Exists(path)
+        ? Path.Combine("data", "payload", $"{name}_{DateTime.Now:yyyyMMdd_HHmmss}.json")
+        : path;
 }
 
 string? Arg(string name)
@@ -130,6 +147,7 @@ static void PrintHelp()
           dotnet run -- query --shop E0001 --tid <tid>    cek satu order di YonSuite, tampilkan respons mentah
           dotnet run -- transform --in <folder/file>      raw JSON Ecolink -> payload YonSuite
                 [--out file.json] [--tid-prefix TEST-]
+                tanpa --out: data/payload/<tid-prefix><nama input>.json
           dotnet run -- push --file <file.json>           push semua order di file
           dotnet run -- push --file <file.json> --dry-run validasi + tulis payload, tanpa kirim
           dotnet run -- push --file <file.json> --only <tid1,tid2> [--force]

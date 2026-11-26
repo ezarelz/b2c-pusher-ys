@@ -24,6 +24,24 @@ raw JSON Ecolink → transform → push → Original Transaction Document → Or
 Push ulang file yang sama di tenant tidak membuat order dobel. Skenario timeout, request hilang,
 crash, dan koreksi sudah lolos di mock.
 
+## Dasar A/R (`ArBasis`)
+
+| `ArBasis` | Nilai A/R (total `payment`) | Catatan |
+| --- | --- | --- |
+| `grand_total` | `grand_total` − `shipping_cost` | Perilaku 21 Nov. Shopee sudah net biaya admin, dan biaya itu tercampur di `discount_fee`. |
+| `amount` | Shopee: `escrow_list.order_original_price` − `order_seller_discount`. Channel lain: `sub_total` − `total_disc` | Keputusan 25 Nov, Mapping Akun NAC: penjualan kotor setelah diskon seller. Biaya admin, voucher seller, AMS dan PPh 22 menjadi baris statement (di luar repo ini). |
+
+Aturan A/R Shopee menurut mapping NAC: Grand Total laporan escrow + Voucher From Seller − Seller Return Refund. Itu sama dengan
+harga asli − diskon seller. Aturan ini diuji pada laporan escrow Shopee 1 Nov 2026 (5.583 order, cocok dengan kolom penjualan mapping).
+
+Mengapa tidak memakai `sub_total` − `total_disc` untuk Shopee: Jubelio memasukkan diskon yang ditanggung Shopee ke diskon baris,
+padahal Shopee yang membayarnya sehingga tidak mengurangi A/R (SP-2611014SUH045Q: baris Jubelio 33.100, A/R 38.300 = 60.000 − 21.700).
+
+Pada `ArBasis = amount` order Shopee ditolak (ditahan) jika:
+- `escrow_list` kosong atau `is_escrow_updated` bukan `true` (escrow belum cair),
+- `seller_return_refund` bukan 0 (retur belum ditangani),
+- `add_disc` atau `add_fee` bukan 0 (pengaruhnya belum diverifikasi).
+
 ## Isi repo
 
 | File | Fungsi |
@@ -104,7 +122,7 @@ Jangan tulis appKey/appSecret di `appsettings.json`; file itu ikut ter-commit.
 | `receiver_mobile` | nomor utuh: angka saja; nomor tersamar: placeholder `081234567890` yang ujungnya diganti digit terakhir yang terlihat (maks. 4) |
 | `post_fee` | `shipping_cost` |
 | Per baris: `itemcode`, `num`, `price`, `total_fee` | `item_code` (bundle `A+B` apa adanya), `qty`, `price`, `price` × `qty` |
-| Per baris: `payment` | `amount` item; selisih dengan `grand_total` dibagi proporsional, sehingga total `payment` + `post_fee` = `grand_total` |
+| Per baris: `payment` | `amount` item; selisih dengan nilai A/R (lihat "Dasar A/R") dibagi proporsional, sehingga total `payment` sama dengan nilai A/R |
 | Per baris: `discount_fee` / `dealPrice` | `total_fee` − `payment` / `payment` ÷ `num` |
 | Per baris: `sub_order_tax_fee` | 0 (PPN dihitung YonSuite dari material) |
 | Per baris: `warehouseCode` | `loc_name` lewat `WarehouseMap` (fase uji: semua → WH001) |
