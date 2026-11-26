@@ -1,4 +1,4 @@
-# B2cPusher
+# B2cPusherTesting
 
 Prototipe untuk membuktikan alur di dokumen **"Informasi Fitur Ecolink: Push Order ke YonSuite B2C"**:
 raw JSON order dari Ecolink diubah menjadi payload `tradevouch/import`, dikirim ke YonSuite B2C
@@ -15,21 +15,21 @@ Alur penuh sudah terbukti di **tenant NAC**:
 
 raw JSON Ecolink → transform → push → Original Transaction Document → Order Approval → Shipped → Daily Sales Report + A/R
 
-| Order uji | Channel | Kasus | A/R |
-| --- | --- | --- | --- |
-| TEST-SP-261119P1W4XK7W | Shopee E0001 | bundle, voucher penjual, `grand_total` sudah dipotong biaya Shopee | 39.048 |
-| TEST-LZ-2790936857856268-93836 | Lazada E0004 | 2 bundle (5 komponen) | 118.400 |
-| TEST-TT-587076589608732602-93837 | TikTok Shop E0006 | COD, 2 baris material sama | 57.800 |
+| Order uji                        | Channel           | Kasus                                                              | A/R     |
+| -------------------------------- | ----------------- | ------------------------------------------------------------------ | ------- |
+| TEST-SP-261119P1W4XK7W           | Shopee E0001      | bundle, voucher penjual, `grand_total` sudah dipotong biaya Shopee | 39.048  |
+| TEST-LZ-2790936857856268-93836   | Lazada E0004      | 2 bundle (5 komponen)                                              | 118.400 |
+| TEST-TT-587076589608732602-93837 | TikTok Shop E0006 | COD, 2 baris material sama                                         | 57.800  |
 
 Push ulang file yang sama di tenant tidak membuat order dobel. Skenario timeout, request hilang,
 crash, dan koreksi sudah lolos di mock.
 
 ## Dasar A/R (`ArBasis`)
 
-| `ArBasis` | Nilai A/R (total `payment`) | Catatan |
-| --- | --- | --- |
-| `grand_total` | `grand_total` − `shipping_cost` | Perilaku 21 Nov. Shopee sudah net biaya admin, dan biaya itu tercampur di `discount_fee`. |
-| `amount` | Shopee: `escrow_list.order_original_price` − `order_seller_discount`. Channel lain: `sub_total` − `total_disc` | Keputusan 25 Nov, Mapping Akun NAC: penjualan kotor setelah diskon seller. Biaya admin, voucher seller, AMS dan PPh 22 menjadi baris statement (di luar repo ini). |
+| `ArBasis`     | Nilai A/R (total `payment`)                                                                                    | Catatan                                                                                                                                                            |
+| ------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `grand_total` | `grand_total` − `shipping_cost`                                                                                | Perilaku 21 Nov. Shopee sudah net biaya admin, dan biaya itu tercampur di `discount_fee`.                                                                          |
+| `amount`      | Shopee: `escrow_list.order_original_price` − `order_seller_discount`. Channel lain: `sub_total` − `total_disc` | Keputusan 25 Nov, Mapping Akun NAC: penjualan kotor setelah diskon seller. Biaya admin, voucher seller, AMS dan PPh 22 menjadi baris statement (di luar repo ini). |
 
 Aturan A/R Shopee menurut mapping NAC: Grand Total laporan escrow + Voucher From Seller − Seller Return Refund. Itu sama dengan
 harga asli − diskon seller. Aturan ini diuji pada laporan escrow Shopee 1 Nov 2026 (5.583 order, cocok dengan kolom penjualan mapping).
@@ -38,52 +38,54 @@ Mengapa tidak memakai `sub_total` − `total_disc` untuk Shopee: Jubelio memasuk
 padahal Shopee yang membayarnya sehingga tidak mengurangi A/R (SP-2611014SUH045Q: baris Jubelio 33.100, A/R 38.300 = 60.000 − 21.700).
 
 Pada `ArBasis = amount` order Shopee ditolak (ditahan) jika:
+
 - `escrow_list` kosong atau `is_escrow_updated` bukan `true` (escrow belum cair),
 - `seller_return_refund` bukan 0 (retur belum ditangani),
 - `add_disc` atau `add_fee` bukan 0 (pengaruhnya belum diverifikasi).
 
 ## Isi repo
 
-| File | Fungsi |
-| --- | --- |
-| `Program.cs` | Perintah: `mock`, `token`, `query`, `transform`, `push`, `verify`, `report` |
-| `Transformer.cs` | Raw JSON Jubelio (dari Ecolink) → payload `externalData` + `partParam` |
-| `Pusher.cs` | Alur per order: cek ledger, validasi, tulis `SENT_UNCONFIRMED`, kirim, baca hasil |
-| `Ledger.cs` | Ledger file `data/ledger.json` (kunci shopcode + tid) |
-| `YonSuiteClient.cs` | Token (signature HmacSHA256, cache, minta ulang otomatis), import, query |
-| `MessageText.cs` | Terjemahan pesan YonSuite (Mandarin) untuk tampilan; teks asli disimpan di log |
-| `Corrections.cs` | Koreksi dari `corrections.csv` tanpa mengubah file asli |
-| `MockServer.cs` | YonSuite palsu di `localhost:5055` untuk uji lokal |
-| `appsettings.json` | Konfigurasi: endpoint, template query, mapping toko dan gudang |
-| `set-env.example.ps1` | Template koneksi ke tenant (salin jadi `set-env.local.ps1`) |
-| `samples/` | Contoh payload mock, contoh koreksi, folder `raw/` untuk raw JSON (tidak di-commit) |
+| File                  | Fungsi                                                                              |
+| --------------------- | ----------------------------------------------------------------------------------- |
+| `Program.cs`          | Perintah: `mock`, `token`, `query`, `transform`, `push`, `verify`, `report`         |
+| `Transformer.cs`      | Raw JSON Jubelio (dari Ecolink) → payload `externalData` + `partParam`              |
+| `Pusher.cs`           | Alur per order: cek ledger, validasi, tulis `SENT_UNCONFIRMED`, kirim, baca hasil   |
+| `Ledger.cs`           | Ledger file `data/ledger.json` (kunci shopcode + tid)                               |
+| `YonSuiteClient.cs`   | Token (signature HmacSHA256, cache, minta ulang otomatis), import, query            |
+| `MessageText.cs`      | Terjemahan pesan YonSuite (Mandarin) untuk tampilan; teks asli disimpan di log      |
+| `Corrections.cs`      | Koreksi dari `corrections.csv` tanpa mengubah file asli                             |
+| `MockServer.cs`       | YonSuite palsu di `localhost:5055` untuk uji lokal                                  |
+| `appsettings.json`    | Konfigurasi: endpoint, template query, mapping toko dan gudang                      |
+| `set-env.example.ps1` | Template koneksi ke tenant (salin jadi `set-env.local.ps1`)                         |
+| `samples/`            | Contoh payload mock, contoh koreksi, folder `raw/` untuk raw JSON (tidak di-commit) |
 
 ## Perintah
 
-| Perintah | Fungsi |
-| --- | --- |
-| `dotnet run -- mock` | Jalankan YonSuite palsu di `localhost:5055` |
-| `dotnet run -- token` | Tes ambil token (seperti step 1 di Postman); token ditampilkan tersamar |
-| `dotnet run -- query --shop E0001 --tid <tid>` | Cek satu order di YonSuite dan tampilkan respons mentah |
-| `dotnet run -- transform --in <folder/file> --out <file.json> --tid-prefix TEST-` | Raw JSON Ecolink → payload. Hanya order COMPLETED. |
-| `dotnet run -- push --file <file.json> [--dry-run]` | Push semua order di file. `--dry-run` hanya validasi dan menulis payload. |
-| `dotnet run -- push --file <file.json> --only <tid1,tid2> [--force]` | Hanya order terpilih. `--force` = kirim ulang walaupun ledger sudah SUCCESS (wajib bersama `--only`). |
-| `dotnet run -- verify [--sample N]` | Query semua `SENT_UNCONFIRMED`, plus N sampel SUCCESS |
-| `dotnet run -- report` | Ringkasan per status dan toko, ekspor `data/ledger_export.csv` |
+| Perintah                                                                          | Fungsi                                                                                                |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `dotnet run -- mock`                                                              | Jalankan YonSuite palsu di `localhost:5055`                                                           |
+| `dotnet run -- token`                                                             | Tes ambil token (seperti step 1 di Postman); token ditampilkan tersamar                               |
+| `dotnet run -- query --shop E0001 --tid <tid>`                                    | Cek satu order di YonSuite dan tampilkan respons mentah                                               |
+| `dotnet run -- transform --in <folder/file> --out <file.json> --tid-prefix TEST-` | Raw JSON Ecolink → payload. Hanya order COMPLETED.                                                    |
+| `dotnet run -- push --file <file.json> [--dry-run]`                               | Push semua order di file. `--dry-run` hanya validasi dan menulis payload.                             |
+| `dotnet run -- push --file <file.json> --only <tid1,tid2> [--force]`              | Hanya order terpilih. `--force` = kirim ulang walaupun ledger sudah SUCCESS (wajib bersama `--only`). |
+| `dotnet run -- verify [--sample N]`                                               | Query semua `SENT_UNCONFIRMED`, plus N sampel SUCCESS                                                 |
+| `dotnet run -- report`                                                            | Ringkasan per status dan toko, ekspor `data/ledger_export.csv`                                        |
 
 ## Menghubungkan ke tenant YonSuite
 
 1. Salin `set-env.example.ps1` menjadi `set-env.local.ps1`, lalu isi dari environment Postman:
 
-   | Postman | Environment variable |
-   | --- | --- |
-   | `{{tokenUrl}}` | `YS_TOKEN_URL` (tanpa `/open-auth/...`, ditambahkan otomatis) |
-   | `{{gatewayUrl}}` | `YS_GATEWAY` |
-   | `{{appKey}}` | `YS_APPKEY` |
-   | `{{appSecret}}` | `YS_APPSECRET` |
+   | Postman          | Environment variable                                          |
+   | ---------------- | ------------------------------------------------------------- |
+   | `{{tokenUrl}}`   | `YS_TOKEN_URL` (tanpa `/open-auth/...`, ditambahkan otomatis) |
+   | `{{gatewayUrl}}` | `YS_GATEWAY`                                                  |
+   | `{{appKey}}`     | `YS_APPKEY`                                                   |
+   | `{{appSecret}}`  | `YS_APPSECRET`                                                |
 
    `tenantId`, `access_token`, dan variabel token lain tidak diperlukan. Biarkan `YS_TOKEN` kosong
    supaya token diminta dan diperbarui otomatis.
+
 2. Jalankan di **PowerShell** (variabel hanya berlaku di terminal itu):
    ```
    . .\set-env.local.ps1
@@ -108,26 +110,26 @@ Jangan tulis appKey/appSecret di `appsettings.json`; file itu ikut ter-commit.
 
 ## Aturan transform (keputusan 21 Nov 2026)
 
-| Field YonSuite | Sumber Jubelio |
-| --- | --- |
-| `tid`, `storeorder_id` | prefix + `salesorder_no` (production: tanpa prefix) |
-| `shopcode`, `store_id` | `store_id` lewat `StoreMap`, dicek silang dengan `source` (channel) dan kata "Nerman" di `store_name` (brand) |
-| `status` | selalu "Shipped" (API tetap membuat To Ship; YonSuite melanjutkan otomatis) |
-| `created`, `consign_time` | `transaction_date` dalam WIB (mirroring Jubelio) |
-| `pay_time` | `payment_date` dalam WIB, atau `transaction_date` kalau kosong |
-| `seller_memo` | `Last updated <tanggal COMPLETED> WIB` + ID Jubelio + store_id + metode bayar, dipisah tanda pipa |
-| `type` | `is_cod` → COD / Online Payment |
-| `buyer_nick` / `receiver_name` | `customer_name` / `shipping_full_name` |
-| `receiver_state/city/district` | ketiganya `shipping_city` |
-| `receiver_mobile` | nomor utuh: angka saja; nomor tersamar: placeholder `081234567890` yang ujungnya diganti digit terakhir yang terlihat (maks. 4) |
-| `post_fee` | `shipping_cost` |
-| Per baris: `itemcode`, `num`, `price`, `total_fee` | `item_code` (bundle `A+B` apa adanya), `qty`, `price`, `price` × `qty` |
-| Per baris: `payment` | `amount` item; selisih dengan nilai A/R (lihat "Dasar A/R") dibagi proporsional, sehingga total `payment` sama dengan nilai A/R |
-| Per baris: `discount_fee` / `dealPrice` | `total_fee` − `payment` / `payment` ÷ `num` |
-| Per baris: `sub_order_tax_fee` | 0 (PPN dihitung YonSuite dari material) |
-| Per baris: `warehouseCode` | `loc_name` lewat `WarehouseMap` (fase uji: semua → WH001) |
-| Per baris: `logistics_company`, `invoice_no` | `courier`, `tracking_no` |
-| `partParam.orgCode` | `OrgCode` di config ("ecolink") |
+| Field YonSuite                                     | Sumber Jubelio                                                                                                                  |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `tid`, `storeorder_id`                             | prefix + `salesorder_no` (production: tanpa prefix)                                                                             |
+| `shopcode`, `store_id`                             | `store_id` lewat `StoreMap`, dicek silang dengan `source` (channel) dan kata "Nerman" di `store_name` (brand)                   |
+| `status`                                           | selalu "Shipped" (API tetap membuat To Ship; YonSuite melanjutkan otomatis)                                                     |
+| `created`, `consign_time`                          | `transaction_date` dalam WIB (mirroring Jubelio)                                                                                |
+| `pay_time`                                         | `payment_date` dalam WIB, atau `transaction_date` kalau kosong                                                                  |
+| `seller_memo`                                      | `Last updated <tanggal COMPLETED> WIB` + ID Jubelio + store_id + metode bayar, dipisah tanda pipa                               |
+| `type`                                             | `is_cod` → COD / Online Payment                                                                                                 |
+| `buyer_nick` / `receiver_name`                     | `customer_name` / `shipping_full_name`                                                                                          |
+| `receiver_state/city/district`                     | ketiganya `shipping_city`                                                                                                       |
+| `receiver_mobile`                                  | nomor utuh: angka saja; nomor tersamar: placeholder `081234567890` yang ujungnya diganti digit terakhir yang terlihat (maks. 4) |
+| `post_fee`                                         | `shipping_cost`                                                                                                                 |
+| Per baris: `itemcode`, `num`, `price`, `total_fee` | `item_code` (bundle `A+B` apa adanya), `qty`, `price`, `price` × `qty`                                                          |
+| Per baris: `payment`                               | `amount` item; selisih dengan nilai A/R (lihat "Dasar A/R") dibagi proporsional, sehingga total `payment` sama dengan nilai A/R |
+| Per baris: `discount_fee` / `dealPrice`            | `total_fee` − `payment` / `payment` ÷ `num`                                                                                     |
+| Per baris: `sub_order_tax_fee`                     | 0 (PPN dihitung YonSuite dari material)                                                                                         |
+| Per baris: `warehouseCode`                         | `loc_name` lewat `WarehouseMap` (fase uji: semua → WH001)                                                                       |
+| Per baris: `logistics_company`, `invoice_no`       | `courier`, `tracking_no`                                                                                                        |
+| `partParam.orgCode`                                | `OrgCode` di config ("ecolink")                                                                                                 |
 
 Query: body `{"partParam":{"pageIndex":1,"pageSize":10,"shopcode":"…","tid":"…"}}`.
 `pageIndex`/`pageSize` wajib di dalam `partParam`. Respons dengan code selain 200 dihitung
@@ -135,14 +137,14 @@ Query: body `{"partParam":{"pageIndex":1,"pageSize":10,"shopcode":"…","tid":"�
 
 ## Temuan teknis di tenant
 
-| Temuan | Catatan |
-| --- | --- |
-| YonSuite membaca waktu sebagai UTC+8 | Tampil 1 jam lebih awal dari WIB. Diterima sementara. |
-| Tanggal aktif Retail Store | Order yang lebih awal dari tanggal aktif toko berhenti di Original Transaction Document. Mundurkan tanggal aktif, lalu transfer ulang. |
-| Express Company tidak terbaca | Tetap "test EC". Resi masuk ke Primary Express Waybill No. Kandidat field: `shipExpressCode`. |
-| Province/City/District kosong | Master wilayah tenant masih China. |
-| `source` TikTok Shop | "Shop \| Tokopedia" |
-| Toko Nerman | Belum ada order COMPLETED di Ecolink (sampai 21 Nov) |
+| Temuan                               | Catatan                                                                                                                                |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| YonSuite membaca waktu sebagai UTC+8 | Tampil 1 jam lebih awal dari WIB. Diterima sementara.                                                                                  |
+| Tanggal aktif Retail Store           | Order yang lebih awal dari tanggal aktif toko berhenti di Original Transaction Document. Mundurkan tanggal aktif, lalu transfer ulang. |
+| Express Company tidak terbaca        | Tetap "test EC". Resi masuk ke Primary Express Waybill No. Kandidat field: `shipExpressCode`.                                          |
+| Province/City/District kosong        | Master wilayah tenant masih China.                                                                                                     |
+| `source` TikTok Shop                 | "Shop \| Tokopedia"                                                                                                                    |
+| Toko Nerman                          | Belum ada order COMPLETED di Ecolink (sampai 21 Nov)                                                                                   |
 
 ## Uji lokal dengan mock
 
@@ -154,14 +156,14 @@ dotnet run -- verify
 dotnet run -- push --file samples/orders_mock.json
 ```
 
-| tid | Hasil push pertama | Skenario |
-| --- | --- | --- |
-| SIM-MOCK-001, 002 | SUCCESS | Normal |
-| SIM-MOCK-003-TIMEOUT | SENT_UNCONFIRMED → verify → SUCCESS | Order tercatat, respons tidak sampai |
-| SIM-MOCK-004-BADSTORE | FAILED_PUSH | `code` 200 tapi gagal 1 order |
-| SIM-MOCK-005 | FAILED_VALIDATION | `orgCode` kosong |
-| SIM-MOCK-006-DROP | SENT_UNCONFIRMED → push ulang → SUCCESS | Request hilang |
-| SIM-MOCK-007 | FAILED_VALIDATION | Shopcode E0099 tidak ada |
+| tid                   | Hasil push pertama                      | Skenario                             |
+| --------------------- | --------------------------------------- | ------------------------------------ |
+| SIM-MOCK-001, 002     | SUCCESS                                 | Normal                               |
+| SIM-MOCK-003-TIMEOUT  | SENT_UNCONFIRMED → verify → SUCCESS     | Order tercatat, respons tidak sampai |
+| SIM-MOCK-004-BADSTORE | FAILED_PUSH                             | `code` 200 tapi gagal 1 order        |
+| SIM-MOCK-005          | FAILED_VALIDATION                       | `orgCode` kosong                     |
+| SIM-MOCK-006-DROP     | SENT_UNCONFIRMED → push ulang → SUCCESS | Request hilang                       |
+| SIM-MOCK-007          | FAILED_VALIDATION                       | Shopcode E0099 tidak ada             |
 
 Cek `http://localhost:5055/mock/state`: `duplicates` harus **0**. Tes koreksi: salin
 `samples/corrections_example.csv` menjadi `corrections.csv`, lalu push lagi.
